@@ -1,0 +1,27 @@
+# Node modules
+frontend/node_modules/
+
+# Vite build
+frontend/dist/
+
+# Backend build
+backend/build/
+
+# VS Code
+.vscode/
+
+# CMake generated files
+backend/CMakeFiles/
+backend/CMakeCache.txt
+backend/cmake_install.cmake
+backend/Makefile
+backend/build.ninja
+backend/.ninja_deps
+backend/.ninja_log
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
