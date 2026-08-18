@@ -7,6 +7,7 @@
 #include "Book.h"
 #include "Member.h"
 #include "Transaction.h"
+#include "Database.h"
 
 using namespace std;
 
@@ -16,6 +17,8 @@ private:
     vector<Book> books;
     vector<Member> members;
     vector<Transaction> transactions;
+
+    Database database;
 
 public:
     LibraryManager();

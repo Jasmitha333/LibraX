@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 include_directories(include)
 
+find_package(SQLite3 REQUIRED)
+
 add_executable(
     LibraryManagement
 
@@ -14,4 +16,11 @@ add_executable(
     src/Member.cpp
     src/Transaction.cpp
     src/LibraryManager.cpp
+    src/Database.cpp
+)
+
+target_link_libraries(
+    LibraryManagement
+    PRIVATE
+    SQLite3::SQLite3
 )

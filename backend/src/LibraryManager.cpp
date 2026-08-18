@@ -3,12 +3,54 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <iostream>
 
 LibraryManager::LibraryManager()
 {
+    if (!database.connect("../data/library.db"))
+    {
+        cout << "Database connection failed!" << endl;
+        return;
+    }
+
+    database.execute(
+        "CREATE TABLE IF NOT EXISTS books ("
+        "id TEXT PRIMARY KEY,"
+        "title TEXT NOT NULL,"
+        "author TEXT NOT NULL,"
+        "category TEXT NOT NULL,"
+        "total_copies INTEGER NOT NULL,"
+        "available_copies INTEGER NOT NULL,"
+        "issued_copies INTEGER NOT NULL,"
+        "status TEXT NOT NULL"
+        ");"
+    );
+
+    database.execute(
+        "CREATE TABLE IF NOT EXISTS members ("
+        "id TEXT PRIMARY KEY,"
+        "name TEXT NOT NULL,"
+        "email TEXT NOT NULL,"
+        "phone TEXT NOT NULL,"
+        "books_borrowed INTEGER NOT NULL"
+        ");"
+    );
+
+    database.execute(
+        "CREATE TABLE IF NOT EXISTS transactions ("
+        "id TEXT PRIMARY KEY,"
+        "member_name TEXT NOT NULL,"
+        "book_title TEXT NOT NULL,"
+        "issue_date TEXT NOT NULL,"
+        "due_date TEXT NOT NULL,"
+        "fine INTEGER NOT NULL,"
+        "status TEXT NOT NULL"
+        ");"
+    );
     loadBooks();
     loadMembers();
-    loadTransactions();
+
+    cout << "SQLite database connected successfully!" << endl;
 }
 
 void LibraryManager::addBook(Book book)
@@ -277,188 +319,335 @@ void LibraryManager::returnBook(string transactionId)
 
 void LibraryManager::saveBooks()
 {
-    ofstream file("../data/books.txt");
+    database.execute("DELETE FROM books;");
+
+    string sql =
+        "INSERT INTO books "
+        "(id, title, author, category, total_copies, available_copies, issued_copies, status) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+
+    sqlite3_stmt *statement = nullptr;
+
+    if (sqlite3_prepare_v2(
+            database.getConnection(),
+            sql.c_str(),
+            -1,
+            &statement,
+            nullptr) != SQLITE_OK)
+    {
+        return;
+    }
 
     for (Book &book : books)
     {
-        file
-            << book.getId() << ","
-            << book.getTitle() << ","
-            << book.getAuthor() << ","
-            << book.getCategory() << ","
-            << book.getTotalCopies() << ","
-            << book.getAvailableCopies() << ","
-            << book.getIssuedCopies() << ","
-            << book.getStatus()
-            << endl;
+        sqlite3_bind_text(statement, 1, book.getId().c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(statement, 2, book.getTitle().c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(statement, 3, book.getAuthor().c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(statement, 4, book.getCategory().c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(statement, 5, book.getTotalCopies());
+        sqlite3_bind_int(statement, 6, book.getAvailableCopies());
+        sqlite3_bind_int(statement, 7, book.getIssuedCopies());
+        sqlite3_bind_text(statement, 8, book.getStatus().c_str(), -1, SQLITE_TRANSIENT);
+
+        sqlite3_step(statement);
+        sqlite3_reset(statement);
     }
 
-    file.close();
+    sqlite3_finalize(statement);
 }
 
 void LibraryManager::loadBooks()
 {
     books.clear();
 
-    ifstream file("../data/books.txt");
+    string sql =
+        "SELECT id, title, author, category, total_copies, "
+        "available_copies, issued_copies, status "
+        "FROM books;";
 
-    if (!file.is_open())
+    sqlite3_stmt *statement = nullptr;
+
+    if (sqlite3_prepare_v2(
+            database.getConnection(),
+            sql.c_str(),
+            -1,
+            &statement,
+            nullptr) != SQLITE_OK)
     {
         return;
     }
 
-    string line;
-
-    while (getline(file, line))
+    while (sqlite3_step(statement) == SQLITE_ROW)
     {
-        stringstream ss(line);
+        string id = reinterpret_cast<const char *>(sqlite3_column_text(statement, 0));
+        string title = reinterpret_cast<const char *>(sqlite3_column_text(statement, 1));
+        string author = reinterpret_cast<const char *>(sqlite3_column_text(statement, 2));
+        string category = reinterpret_cast<const char *>(sqlite3_column_text(statement, 3));
 
-        string id;
-        string title;
-        string author;
-        string category;
-        string totalCopies;
-        string availableCopies;
-        string issuedCopies;
-        string status;
+        int totalCopies = sqlite3_column_int(statement, 4);
+        int availableCopies = sqlite3_column_int(statement, 5);
+        int issuedCopies = sqlite3_column_int(statement, 6);
 
-        getline(ss, id, ',');
-        getline(ss, title, ',');
-        getline(ss, author, ',');
-        getline(ss, category, ',');
-        getline(ss, totalCopies, ',');
-        getline(ss, availableCopies, ',');
-        getline(ss, issuedCopies, ',');
-        getline(ss, status);
+        string status = reinterpret_cast<const char *>(sqlite3_column_text(statement, 7));
 
         Book book(
             id,
             title,
             author,
             category,
-            stoi(totalCopies),
-            stoi(availableCopies),
-            stoi(issuedCopies),
+            totalCopies,
+            availableCopies,
+            issuedCopies,
             status);
 
         books.push_back(book);
     }
 
-    file.close();
+    sqlite3_finalize(statement);
 }
 
 void LibraryManager::saveMembers()
 {
-    ofstream file("../data/members.txt");
+    database.execute("DELETE FROM members;");
+
+    string sql =
+        "INSERT INTO members "
+        "(id, name, email, phone, books_borrowed) "
+        "VALUES (?, ?, ?, ?, ?);";
+
+    sqlite3_stmt *statement = nullptr;
+
+    if (sqlite3_prepare_v2(
+            database.getConnection(),
+            sql.c_str(),
+            -1,
+            &statement,
+            nullptr) != SQLITE_OK)
+    {
+        return;
+    }
 
     for (Member &member : members)
     {
-        file
-            << member.getId() << ","
-            << member.getName() << ","
-            << member.getEmail() << ","
-            << member.getPhone() << ","
-            << member.getBooksBorrowed()
-            << endl;
+        sqlite3_bind_text(
+            statement,
+            1,
+            member.getId().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
+
+        sqlite3_bind_text(
+            statement,
+            2,
+            member.getName().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
+
+        sqlite3_bind_text(
+            statement,
+            3,
+            member.getEmail().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
+
+        sqlite3_bind_text(
+            statement,
+            4,
+            member.getPhone().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
+
+        sqlite3_bind_int(
+            statement,
+            5,
+            member.getBooksBorrowed());
+
+        sqlite3_step(statement);
+        sqlite3_reset(statement);
     }
 
-    file.close();
+    sqlite3_finalize(statement);
 }
 
 void LibraryManager::loadMembers()
 {
     members.clear();
 
-    ifstream file("../data/members.txt");
+    string sql =
+        "SELECT id, name, email, phone, books_borrowed "
+        "FROM members;";
 
-    if (!file.is_open())
+    sqlite3_stmt *statement = nullptr;
+
+    if (sqlite3_prepare_v2(
+            database.getConnection(),
+            sql.c_str(),
+            -1,
+            &statement,
+            nullptr) != SQLITE_OK)
     {
         return;
     }
 
-    string line;
-
-    while (getline(file, line))
+    while (sqlite3_step(statement) == SQLITE_ROW)
     {
-        stringstream ss(line);
+        string id =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 0));
 
-        string id;
-        string name;
-        string email;
-        string phone;
-        string booksBorrowed;
+        string name =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 1));
 
-        getline(ss, id, ',');
-        getline(ss, name, ',');
-        getline(ss, email, ',');
-        getline(ss, phone, ',');
-        getline(ss, booksBorrowed);
+        string email =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 2));
+
+        string phone =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 3));
+
+        int booksBorrowed =
+            sqlite3_column_int(statement, 4);
 
         Member member(
             id,
             name,
             email,
             phone,
-            stoi(booksBorrowed));
+            booksBorrowed);
 
         members.push_back(member);
     }
 
-    file.close();
+    sqlite3_finalize(statement);
 }
 
 void LibraryManager::saveTransactions()
 {
-    ofstream file("../data/transactions.txt");
+    database.execute("DELETE FROM transactions;");
 
-    for (Transaction &transaction : transactions)
-    {
-        file
-            << transaction.getId() << ","
-            << transaction.getMemberName() << ","
-            << transaction.getBookTitle() << ","
-            << transaction.getIssueDate() << ","
-            << transaction.getDueDate() << ","
-            << transaction.getFine() << ","
-            << transaction.getStatus()
-            << endl;
-    }
+    string sql =
+        "INSERT INTO transactions "
+        "(id, member_name, book_title, issue_date, due_date, fine, status) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?);";
 
-    file.close();
-}
+    sqlite3_stmt *statement = nullptr;
 
-void LibraryManager::loadTransactions()
-{
-    transactions.clear();
-
-    ifstream file("../data/transactions.txt");
-
-    if (!file.is_open())
+    if (sqlite3_prepare_v2(
+            database.getConnection(),
+            sql.c_str(),
+            -1,
+            &statement,
+            nullptr) != SQLITE_OK)
     {
         return;
     }
 
-    string line;
-
-    while (getline(file, line))
+    for (Transaction &transaction : transactions)
     {
-        stringstream ss(line);
+        sqlite3_bind_text(
+            statement,
+            1,
+            transaction.getId().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
 
-        string id;
-        string memberName;
-        string bookTitle;
-        string issueDate;
-        string dueDate;
-        string fine;
-        string status;
+        sqlite3_bind_text(
+            statement,
+            2,
+            transaction.getMemberName().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
 
-        getline(ss, id, ',');
-        getline(ss, memberName, ',');
-        getline(ss, bookTitle, ',');
-        getline(ss, issueDate, ',');
-        getline(ss, dueDate, ',');
-        getline(ss, fine, ',');
-        getline(ss, status);
+        sqlite3_bind_text(
+            statement,
+            3,
+            transaction.getBookTitle().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
+
+        sqlite3_bind_text(
+            statement,
+            4,
+            transaction.getIssueDate().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
+
+        sqlite3_bind_text(
+            statement,
+            5,
+            transaction.getDueDate().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
+
+        sqlite3_bind_int(
+            statement,
+            6,
+            transaction.getFine());
+
+        sqlite3_bind_text(
+            statement,
+            7,
+            transaction.getStatus().c_str(),
+            -1,
+            SQLITE_TRANSIENT);
+
+        sqlite3_step(statement);
+        sqlite3_reset(statement);
+    }
+
+    sqlite3_finalize(statement);
+}
+void LibraryManager::loadTransactions()
+{
+    transactions.clear();
+
+    string sql =
+        "SELECT id, member_name, book_title, issue_date, "
+        "due_date, fine, status "
+        "FROM transactions;";
+
+    sqlite3_stmt *statement = nullptr;
+
+    if (sqlite3_prepare_v2(
+            database.getConnection(),
+            sql.c_str(),
+            -1,
+            &statement,
+            nullptr) != SQLITE_OK)
+    {
+        return;
+    }
+
+    while (sqlite3_step(statement) == SQLITE_ROW)
+    {
+        string id =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 0));
+
+        string memberName =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 1));
+
+        string bookTitle =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 2));
+
+        string issueDate =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 3));
+
+        string dueDate =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 4));
+
+        int fine =
+            sqlite3_column_int(statement, 5);
+
+        string status =
+            reinterpret_cast<const char *>(
+                sqlite3_column_text(statement, 6));
 
         Transaction transaction(
             id,
@@ -466,12 +655,11 @@ void LibraryManager::loadTransactions()
             bookTitle,
             issueDate,
             dueDate,
-            stoi(fine),
+            fine,
             status);
 
         transactions.push_back(transaction);
     }
 
-    file.close();
+    sqlite3_finalize(statement);
 }
-
