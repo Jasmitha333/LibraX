@@ -458,7 +458,8 @@ server.Put(R"(/api/transactions/(.+))",
 
 // Serve React frontend
 // Serve React frontend
-// server.set_mount_point("/", "../../frontend/dist");
+// Serve React frontend
+server.set_mount_point("/", "/app/frontend/dist");
 
 cout << "LibraX API Server starting..." << endl;
 
@@ -470,4 +471,3 @@ cout << "Server running on port " << port << endl;
 server.listen("0.0.0.0", port);
 
 return 0;
-}

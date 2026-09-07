@@ -1,14 +1,14 @@
 # =========================
-# Stage 1: Build React Frontend
+# Stage 1: Build React
 # =========================
 FROM node:20 AS frontend-builder
 
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm ci
 
-COPY frontend/ ./
+COPY frontend/ .
 RUN npm run build
 
 
@@ -25,11 +25,9 @@ RUN apt-get update && \
     libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-
-COPY backend/ ./backend/
-
 WORKDIR /app/backend
+
+COPY backend/ .
 
 RUN mkdir build && \
     cd build && \
@@ -38,7 +36,7 @@ RUN mkdir build && \
 
 
 # =========================
-# Stage 3: Final Image
+# Stage 3: Final Application
 # =========================
 FROM ubuntu:24.04
 
@@ -49,13 +47,10 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# C++ API
 COPY --from=backend-builder /app/backend/build/LibraXApi ./LibraXApi
 
-# SQLite database
 COPY --from=backend-builder /app/backend/data ./data
 
-# React frontend
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 EXPOSE 10000
