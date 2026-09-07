@@ -49,6 +49,8 @@ LibraryManager::LibraryManager()
     );
     loadBooks();
     loadMembers();
+    loadTransactions();
+    
 
     cout << "SQLite database connected successfully!" << endl;
 }
