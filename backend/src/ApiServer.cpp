@@ -1,8 +1,8 @@
+#include <cstdlib>
 #include "httplib.h"
 #include "json.hpp"
 #include "LibraryManager.h"
-#include <iostream>
-#include <cstdlib>
+
 
 using namespace std;
 using json = nlohmann::json;
@@ -471,3 +471,4 @@ cout << "Server running on port " << port << endl;
 server.listen("0.0.0.0", port);
 
 return 0;
+}
