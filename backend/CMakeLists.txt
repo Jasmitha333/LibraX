@@ -40,5 +40,5 @@ target_link_libraries(LibraryManagement
 
 target_link_libraries(LibraXApi
     SQLite::SQLite3
-    ws2_32
+
 )
