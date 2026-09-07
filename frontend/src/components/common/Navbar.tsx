@@ -43,7 +43,7 @@ function Navbar() {
             <div>
 
               <h1 className="font-semibold text-slate-900">
-                Libra
+                LibraX
               </h1>
 
             </div>
