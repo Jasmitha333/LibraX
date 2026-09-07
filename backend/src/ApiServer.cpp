@@ -457,16 +457,17 @@ server.Put(R"(/api/transactions/(.+))",
 });
 
 // Serve React frontend
-server.set_mount_point("/", "../../frontend/dist");
-
-
-    const char *portEnv = getenv("PORT");
-int port = portEnv ? stoi(portEnv) : 8080;
+// Serve React frontend
+// server.set_mount_point("/", "../../frontend/dist");
 
 cout << "LibraX API Server starting..." << endl;
+
+const char* portEnv = std::getenv("PORT");
+int port = portEnv ? std::stoi(portEnv) : 8080;
+
 cout << "Server running on port " << port << endl;
 
 server.listen("0.0.0.0", port);
 
-    return 0;
+return 0;
 }
